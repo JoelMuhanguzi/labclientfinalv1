@@ -28,20 +28,23 @@ using System.Globalization;
 
 namespace projectTest1
 {
-    public partial class Form1 : Form
+    public partial class DefaultLayout : Form
     {
+        //DIRECTORIES;
         static string APPDATA_PATH = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData); // AppData folder
         static string CFGFOLDER_PATH = Path.Combine(APPDATA_PATH, "Configs");     // Path for program config folder
+
         string labzipfile = "";
         string labfolder_path ="";
-        string CFGFILE_PATH = "";   // Path for config.txt file         
+        string CFGFILE_PATH = "";   //Path for config.txt file         
         string labTimeFile = Path.Combine(CFGFOLDER_PATH, "labTime.txt");
         static string labReport_path = Path.Combine(CFGFOLDER_PATH, "labreport.txt"); // AppData folder
-        string lab;
+        static string download_report_path = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory); //report saved here for user;
+
+        //VARIABLES;
         List<string> allknob1values = new List<string>();
         List<string> allknob2values = new List<string>();
-        string deviceName;
-        string hostAddress;
+
         string datetime { get; set; }
         List<Channel> channels;
         private int numberOfChannels;
@@ -49,59 +52,66 @@ namespace projectTest1
         XDocument xdoc = new XDocument();
         List<Switch> switches;
         private int numberOfSwitches;   
-        int time = 5000;
+        int time = 2400; //stands for 40 minutes of lab interaction time;
         int counter = 0;
-        bool pausestate = false;
-        bool fiinishstate = false;
+        bool pause_state = false;
+        bool finish_state = false;
         string xmltotxt = null;
         string encryptrpt = null;
         public string Key = "Nsi2k19!";
-        private string Device = "Dev1"; // default device name
-        private string apiKey = "1234";
-       private string apiPort = "9000"; 
-        public Form1()
+        private Bitmap bmp;
+        private bool lab_state { get; set; } = false;
+        private bool start_lab_state { get; set; } = false;
+        private bool switch_creation_state { get; set; } = false;
+
+        private string Device { get; set; } = "Dev1"; // default device name
+        private string apiKey { get; set; } = "1234"; // default api key
+        private string apiPort { get; set; } = "9000"; // default api port
+        private string hostAddress { get; set; }
+        private string runlab { get; set; } 
+        
+        public DefaultLayout()
         {
-            InitializeComponent();            
-             existingLabs();
+            InitializeComponent();
+            existingLabs();
+            comboBox1.SelectedIndexChanged -= comboBox1_SelectedIndexChanged;
+            comboBox1.SelectedIndex = 0;
+            comboBox1.SelectedIndexChanged += comboBox1_SelectedIndexChanged;
         }
 
         private void knob1_AfterChangeValue(object sender, AfterChangeNumericValueEventArgs e)
         {
-            var knob2value = knob2.Value.ToString();
-            var knob1value = knob1.Value.ToString();            
-            //Change_Wave();
+            var knob2value = amplitude_knob.Value.ToString();
+            var knob1value = frequency_knob.Value.ToString();            
         }
 
         private void knob2_AfterChangeValue(object sender, AfterChangeNumericValueEventArgs e)
         {
-             var knob2value = knob2.Value.ToString();
-             var knob1value = knob1.Value.ToString();
-            // Change_Wave();
+             var knob2value = amplitude_knob.Value.ToString();
+             var knob1value = frequency_knob.Value.ToString();
         }
         private void knob2_MouseUp(object sender, MouseEventArgs e)
         {
-            var knob2value = knob2.Value.ToString();
-            var knob1value = knob1.Value.ToString();
+            var knob2value = amplitude_knob.Value.ToString();
+            var knob1value = frequency_knob.Value.ToString();
             allknob2values.Add(knob2value);
             Change_Wave();
         }
 
         private void knob1_MouseUp(object sender, MouseEventArgs e)
         {
-            var knob2value = knob2.Value.ToString();
-            var knob1value = knob1.Value.ToString();
+            var knob2value = amplitude_knob.Value.ToString();
+            var knob1value = frequency_knob.Value.ToString();
             allknob1values.Add(knob1value);
-           // ChangeWave(knob2value, knob1value);
             Change_Wave();
         }
            
-        //Uploading the xml file
+        //Uploading the lab files
         private void uploadLabToolStripMenuItem_Click(object sender, EventArgs e)
         {        
-            //file_content = reader.ReadToEnd();
            if (!Directory.Exists(CFGFOLDER_PATH))
            {
-                   Directory.CreateDirectory(CFGFOLDER_PATH); // Create the Config File Exmaple folder
+                   Directory.CreateDirectory(CFGFOLDER_PATH); 
                    appDataXmlfile();
            }
            else
@@ -144,7 +154,7 @@ namespace projectTest1
 
                                 if (isValidLabFile)
                                 {                                                                   
-                                    zip.ExtractToDirectory(Path.Combine(CFGFOLDER_PATH, labzipfile));                                  
+                                    zip.ExtractToDirectory(Path.Combine(CFGFOLDER_PATH, labzipfile));                                 
                                    
                                 }     
                             }
@@ -186,7 +196,7 @@ namespace projectTest1
             {
             XDocument labDoc = XDocument.Load(path);
 
-                deviceName = (from dev in labDoc.Descendants("Setting")
+                Device = (from dev in labDoc.Descendants("Setting")
                               where (string)dev.Attribute("Name") == "Device"
                               select (string)dev.Attribute("Value").Value).FirstOrDefault();
 
@@ -216,9 +226,9 @@ namespace projectTest1
 
                 numberOfChannels = channels.Count();
                 numberOfSwitches = switches.Count();
-                string val = string.Format("Device Name: {0}\n", deviceName);
+
                 CreateChannels(channels, hostAddress);
-                labCircuit.Image = Image.FromFile(Path.Combine(labfolder_path, "images", "ON_OFF" + ".png"));
+                lab_Circuit.Image = Image.FromFile(Path.Combine(labfolder_path, "images", "ON_OFF" + ".png"));
                 label2.Visible = true;
                 CreateSwitches(switches, hostAddress);
                 ConnectDataSockets();                     
@@ -231,8 +241,7 @@ namespace projectTest1
         }
         //creating the switches
         public void CreateSwitches(List<Switch> labSwitches, string hostAddress)
-        {
-           //  List<Image> image = Directory.GetFiles(Path.Combine(CFGFOLDER_PATH, "images"));
+        {           
             foreach (Switch _switch in labSwitches)
             {
                  NationalInstruments.UI.WindowsForms.Switch sw = new NationalInstruments.UI.WindowsForms.Switch();
@@ -247,7 +256,8 @@ namespace projectTest1
                 ((System.ComponentModel.ISupportInitialize)(sw)).EndInit();
                 flowLayoutPanel1.Controls.Add(sw);
                 sw.StateChanged += new NationalInstruments.UI.ActionEventHandler(switches_StateChanged);
-                this.components.Add(sw);                
+                this.components.Add(sw);
+                switch_creation_state = true;
             }          
         }
 
@@ -265,9 +275,7 @@ namespace projectTest1
            
             foreach (var sw in labSwitches)
             {
-
                 val += GetSwState(sw.Value) + "_";
-            
             }
             if (Directory.Exists(Path.Combine(labfolder_path, "images")))
             {
@@ -275,11 +283,12 @@ namespace projectTest1
                 {
                     val = val.Remove(val.Length - 1);
                     textBox1.Visible = false;
-                    labCircuit.Image = Image.FromFile(Path.Combine(labfolder_path, "images", val + ".png"));  
+                    lab_Circuit.Image = Image.FromFile(Path.Combine(labfolder_path, "images", val + ".png"));
+                    Toggle_Switches();
                 }
                 catch (Exception ex)
                 {
-                    labCircuit.Image = null;
+                    lab_Circuit.Image = null;
                     textBox1.Visible = true;
                     MessageBox.Show(ex.Message);
                 }
@@ -301,7 +310,7 @@ namespace projectTest1
                   System.Drawing.Color.White,System.Drawing.Color.Brown,
                   System.Drawing.Color.DarkCyan,System.Drawing.Color.DarkOrange,System.Drawing.Color.Gainsboro};
 
-            waveformGraph1.Plots.RemoveAt(0);
+            waveformGraph1.Plots.Clear();
             for (int i = 0; i < channels.Count; i++)
             {
                 WaveformPlot plot = new WaveformPlot();
@@ -314,7 +323,6 @@ namespace projectTest1
             }
 
             //create dataSockets
-
             foreach (Channel channel in channels)
             {
                 DataSocket dataSocket = new DataSocket(this.components);
@@ -343,6 +351,7 @@ namespace projectTest1
                     if (dataSocket.IsConnected)
                         dataSocket.Disconnect();
                     dataSocket.Connect();
+                    start_lab_state = true;
                 }
             }
             catch (Exception ex)
@@ -360,6 +369,7 @@ namespace projectTest1
                 {
                     if (dataSocket.IsConnected)
                         dataSocket.Disconnect();
+                    start_lab_state = false;
                 }
             }
             catch (Exception ex)
@@ -369,98 +379,109 @@ namespace projectTest1
         }            
 
         private void startLabToolStripMenuItem_Click(object sender, EventArgs e)
-        {
+        {           
 
-            if (ExistingLabList.SelectedIndex > -1)
+            try
             {
-                lab = ExistingLabList.GetItemText(ExistingLabList.SelectedItem);
-                labzipfile = lab;
-                labfolder_path = Path.Combine(CFGFOLDER_PATH, labzipfile);
-                CFGFILE_PATH = Path.Combine(labfolder_path, "lab.xml");
-                //MessageBox.Show(CFGFILE_PATH);
-                if (File.Exists(labTimeFile))
+                if (ExistingLabList.SelectedIndex > -1)
                 {
-                    MessageBox.Show("please just resume with your lab");
-                }
-                else
-                {
-                    if (File.Exists(CFGFILE_PATH))
+                  
+                    labzipfile = runlab;
+                    labfolder_path = Path.Combine(CFGFOLDER_PATH, labzipfile);
+                    CFGFILE_PATH = Path.Combine(labfolder_path, "lab.xml");
+                   
+                    if (File.Exists(labTimeFile))
                     {
-                        XDocument labDoc = XDocument.Load(CFGFILE_PATH);
-                        string datetime = (from dev in labDoc.Descendants("Setting")
-                                           where (string)dev.Attribute("Name") == "DateTime"
-                                           select (string)dev.Attribute("Value").Value).FirstOrDefault();
-                        apiPort = (from dev in labDoc.Descendants("Setting")
-                                   where (string)dev.Attribute("Name") == "Api Port"
-                                   select (string)dev.Attribute("Value").Value).FirstOrDefault();
-
-                        hostAddress = (from dev in labDoc.Descendants("Setting")
-                                       where (string)dev.Attribute("Name") == "Lab Url"
+                        MessageBox.Show("Please resume your lab", "Start Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    else
+                    {
+                        if (File.Exists(CFGFILE_PATH))
+                        {
+                            XDocument labDoc = XDocument.Load(CFGFILE_PATH);
+                            datetime = (from dev in labDoc.Descendants("Setting")
+                                               where (string)dev.Attribute("Name") == "DateTime"
+                                               select (string)dev.Attribute("Value").Value).FirstOrDefault();
+                            apiPort = (from dev in labDoc.Descendants("Setting")
+                                       where (string)dev.Attribute("Name") == "Api Port"
                                        select (string)dev.Attribute("Value").Value).FirstOrDefault();
-                        string baseAddress = "http://" + hostAddress + ":9000/api/time";
-                        HttpWebRequest request = (HttpWebRequest)WebRequest.Create(baseAddress);
-                        request.Method = "Get";
-                        request.KeepAlive = true;
 
-                        HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-                        string myResponse = "";
+                            hostAddress = (from dev in labDoc.Descendants("Setting")
+                                           where (string)dev.Attribute("Name") == "Lab Url"
+                                           select (string)dev.Attribute("Value").Value).FirstOrDefault();
+                            string url = $"http://{hostAddress}:{apiPort}/api/time";
 
-                        using (System.IO.StreamReader sr = new System.IO.StreamReader(response.GetResponseStream()))
-                        {
-                            myResponse = sr.ReadToEnd();
-                        }
+                            //var support_Response = Support.GetFromServer(url);                          
 
-                        String serverdatetime = myResponse.ToString().Substring(1, myResponse.Length - 2);
-                        DateTime servertime = DateTime.Parse(serverdatetime, new System.Globalization.CultureInfo("pt-BR"));
+                            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+                            request.Method = "Get";
+                            request.ContentType = "application/x-www-form-urlencoded";
+                            request.KeepAlive = true;
 
-                        DateTime scheduletime = DateTime.Parse(datetime);
-                        DateTime duration = scheduletime.AddMinutes(30);
+                            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                            string myResponse = "";
 
-                        try
-                        {
-                            //  MessageBox.Show(myResponse);
-                            if (servertime.ToShortDateString().Equals(scheduletime.ToShortDateString()))
+                            using (System.IO.StreamReader sr = new System.IO.StreamReader(response.GetResponseStream()))
                             {
-                                if (servertime.TimeOfDay >= scheduletime.TimeOfDay && servertime.TimeOfDay <= duration.TimeOfDay)
-                                {
-                                    timer1.Enabled = true;
-                                    timer1.Start();
-                                    LoadCurrentFile(CFGFILE_PATH);
+                                myResponse = sr.ReadToEnd();
+                            }
 
-                                }
-                                else if (servertime.TimeOfDay >= scheduletime.TimeOfDay && servertime.TimeOfDay > duration.TimeOfDay)
-                                {
-                                    MessageBox.Show("please reschedule");
+                            //MessageBox.Show(myResponse + "\n" + m); // DEBUG MODE;
 
+                            String serverdatetime = myResponse.ToString().Substring(1, myResponse.Length - 2);
+                            DateTime servertime = DateTime.Parse(serverdatetime);
+
+                            DateTime scheduletime = DateTime.Parse(datetime);
+                            DateTime duration = scheduletime.AddMinutes(30);
+
+                            try
+                            {                              
+                                if (servertime.ToShortDateString().Equals(scheduletime.ToShortDateString()))
+                                {
+                                    if (servertime.TimeOfDay >= scheduletime.TimeOfDay && servertime.TimeOfDay <= duration.TimeOfDay)
+                                    {
+                                        timer1.Enabled = true;
+                                        timer1.Start();
+                                        LoadCurrentFile(CFGFILE_PATH);
+                                    }
+                                    else if (servertime.TimeOfDay >= scheduletime.TimeOfDay && servertime.TimeOfDay > duration.TimeOfDay)
+                                    {
+                                        MessageBox.Show("Please Reschedule for the Lab!", "Schedule Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    }
+                                    else
+                                    {
+                                        MessageBox.Show("Please wait for Lab time!", "Schedule Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    }
                                 }
                                 else
                                 {
-                                    MessageBox.Show("not yet time");
+                                    MessageBox.Show("Please varify date scheduled", "Schedule Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                 }
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                MessageBox.Show("Please varify date scheduled");
+                                MessageBox.Show(ex.Message);
                             }
+
                         }
-                        catch (Exception ex)
+
+                        else
                         {
-                            MessageBox.Show(ex.Message);
+                            MessageBox.Show("Upload lab file", "Start Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         }
-
-                    }
-
-                    else
-                    {
-                        MessageBox.Show("Upload lab file");
                     }
                 }
+                else
+                {
+                    MessageBox.Show("Please select a lab to do!", "Start Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("Please select a lab to do!");
+                MessageBox.Show(ex.Message  );
             }
-                      
+            
           
           }
 
@@ -484,11 +505,13 @@ namespace projectTest1
                select
                new XElement("Frequency", f)
                );
+
             XElement amplitude = new XElement("Amplitudes",
                 from a in allknob2values
                 select
                 new XElement("Amplitude", a)
                 );
+
             var i = new List<pictures>() { 
                     new pictures() {ID = 3, image= data1},                      
                     };
@@ -499,12 +522,7 @@ namespace projectTest1
                          new XElement("ID", emp.ID,
                          new XElement("Image", emp.image)));
 
-            //Build the xml document
-            xdoc = new XDocument(
-               new XDeclaration("1.0", "utf-8", "yes"), new XElement("root", frequencies, amplitude, labimages));
-
-            //convert xml created to text file to encrypt
-            //encryption does not tamper with base64 image string
+            xdoc = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), new XElement("root", frequencies, amplitude, labimages));
             xmltotxt = xdoc.ToString();
             encryptrpt = AesEncryption.EncryptDataAES(xmltotxt, Key);
             
@@ -525,7 +543,6 @@ namespace projectTest1
             }
         }
 
-
         //downloading the labreport from appdata
         private void downloadToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -535,38 +552,38 @@ namespace projectTest1
                 if(File.Exists(labReport_path))
                 {
                     string dest= "labreport.txt";
-                    string targetPath = @"C:\Users\ilabsdeveloper\Downloads";
+                    string targetPath = download_report_path;
                     string destFile = Path.Combine(targetPath, dest);
                     if (!File.Exists(destFile))
                     {        
                         
                         File.Copy(labReport_path, destFile);                      
-                        MessageBox.Show("lab downloaded to Downloads");
+                        MessageBox.Show("Lab report saved to Downloads", "Report Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                     else
                     {
-                        MessageBox.Show("report already downloaded");
+                        MessageBox.Show("Lab report already downloaded", "Report Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }                  
                 }
                 else
                 {
-                    MessageBox.Show("No lab was done please finish the lab");
+                    MessageBox.Show("No lab was done, please first do the lab","Report Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             else
             {
-                MessageBox.Show("No lab was uploaded");
+                MessageBox.Show("No lab was uploaded", "Report Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
         //changing the waveform
         public void Change_Wave()
         {
-            var amp = knob2.Value.ToString();
-            var freq = knob1.Value.ToString();
+            var amp = amplitude_knob.Value.ToString();
+            var freq = frequency_knob.Value.ToString();
             string wave_type = comboBox1.GetItemText(comboBox1.SelectedItem).ToLower();
             /*new code*/
-            var url = "http://"+hostAddress+":9000/api/values";
+            var url = "http://"+hostAddress+":"+apiPort+"/api/values";
             //params
             List<KeyValuePair<string, string>> @params = new List<KeyValuePair<string, string>>
             {
@@ -588,15 +605,48 @@ namespace projectTest1
 
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "change wave error");
+                // MessageBox.Show(ex.Message + "\n Please start lab", "Lab Interface Error");
+                MessageBox.Show(ex.Message + "\n Please first Start Lab to make changes", "Lab Interface Error", MessageBoxButtons.OK, MessageBoxIcon.Warning );
             }
             
         }
-       
-        private void timer1_Tick(object sender, EventArgs e)
+
+        private void Toggle_Switches()
+        {
+            var url = "http://" + hostAddress + ":"+apiPort+"/api/switch";
+            var switch_values = new List<KeyValuePair<string, string>>();
+            foreach (var sw in this.components.Components.OfType<NationalInstruments.UI.WindowsForms.Switch>())
+            {
+                switch_values.Add(new KeyValuePair<string, string>(sw.Name, GetSwState(sw.Value)));
+            }
+            switch_values.Add(new KeyValuePair<string, string>("APIKey", apiKey));
+            switch_values.Add(new KeyValuePair<string, string>("Device", Device));
+            try
+            {
+                var response = Support.PostToServer(url, switch_values);
+                if (response != "\"OK\"")
+                {
+                    MessageBox.Show("Switch Value change failed");
+                }
+            }
+
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Toggle Switch Error:", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+
+
+        }
+
+        private void Timer1_Tick(object sender, EventArgs e)
         {            
-            int new_time =  time--;
-            Time.Text = new_time.ToString();
+            double new_time =  time--; // use double dataype for seconds //timespan intakes double values
+            double lab_time = time--;
+
+            TimeSpan timeSpan = TimeSpan.FromSeconds(lab_time);
+            string dispay_time = timeSpan.ToString(@"hh\:mm\:ss\:fff");
+            //Time.Text = new_time.ToString(); // displays seconds only;
+            TimeDisplay.Text = dispay_time;
 
             if (new_time == 0)
             {
@@ -607,15 +657,13 @@ namespace projectTest1
             }
 
             counter++;
-            if (counter == 2) //elapsed five times
+            if (counter == 2) 
             {
                 counter = 0;
                 existingLabs();
                 if (Directory.Exists(CFGFOLDER_PATH))
-                {
-                    string runlab = ExistingLabList.GetItemText(ExistingLabList.SelectedItem); 
-                    File.WriteAllText(labTimeFile, new_time.ToString() + "\n" +runlab);
-                    //File.WriteAllText(labTimeFile, "\n" + lab);
+                {                  
+                    File.WriteAllText(labTimeFile, new_time.ToString() + "\n" + runlab);                   
                 }
                 else
                 {
@@ -629,22 +677,16 @@ namespace projectTest1
         //Finishing the current lab
         private void finishLabToolStripMenuItem_Click(object sender, EventArgs e)
         {
-           // timer1.Stop();
             DisConnectDataSockets();           
             generatingLabReport();
-            fiinishstate = true;
+            finish_state = true;
             resumeToolStripMenuItem.Enabled = true;
         }
 
         //closing existing lab
         private void closeLabToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            timer1.Stop();
-            DisConnectDataSockets();
-            labCircuit.Image = null;
-            System.Windows.Forms.Application.ExitThread(); 
-            //deleteXmlFile();
-
+            Reset_Lab_Interface();     //resets all controls to default state;   
         }
 
         //deleting existing lab file
@@ -652,14 +694,18 @@ namespace projectTest1
         {
             if (Directory.Exists(CFGFOLDER_PATH))
             {
-                var dir = new DirectoryInfo(CFGFOLDER_PATH);
+                string[] files = Directory.GetFiles(CFGFOLDER_PATH);           
+       
                 try
-                {
-                    dir.Delete(true);  
+                {                   
+                    foreach (string file in files)
+                    {
+                        File.Delete(file);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message);
+                    MessageBox.Show(ex.Message, "Fail");
                 }                        
               
             }           
@@ -675,11 +721,12 @@ namespace projectTest1
                 System.IO.FileStream fs = (System.IO.FileStream)dialogue.OpenFile();
                 if (dialogue.FileName != "")
                 {
-                    using (Bitmap bmp = new Bitmap(waveformGraph1.ClientSize.Width, waveformGraph1.ClientSize.Height))
+                    using (bmp = new Bitmap(waveformGraph1.ClientSize.Width, waveformGraph1.ClientSize.Height))
                     {
                         waveformGraph1.DrawToBitmap(bmp, waveformGraph1.ClientRectangle);
                         bmp.Save(fs, ImageFormat.Png);
-                    }
+                    }               
+                   
                 }
             }
         }
@@ -688,7 +735,7 @@ namespace projectTest1
         private void pauseToolStripMenuItem_Click(object sender, EventArgs e)
         {
             DisConnectDataSockets();
-            pausestate = true;
+            pause_state = true;
             resumeToolStripMenuItem.Enabled = true;
         }
 
@@ -698,122 +745,130 @@ namespace projectTest1
         }  
         //resuming from a pause
         private void resumeToolStripMenuItem_Click(object sender, EventArgs e)
-        {            
-            if (pausestate == true)
+        {
+           
+            if (pause_state == true)
             {
                 ConnectDataSockets();
                 resumeToolStripMenuItem.Enabled = false;
                 
             }
-            else if (fiinishstate == true)
+            else if (finish_state == true)
             {
                 ConnectDataSockets();
             }
             else
-            {  
-                               
-                if (ExistingLabList.SelectedIndex > -1)
+            {
+                try
                 {
-                    lab = ExistingLabList.GetItemText(ExistingLabList.SelectedItem);
-                    labzipfile = lab;
-                    labfolder_path = Path.Combine(CFGFOLDER_PATH, labzipfile);
-                    CFGFILE_PATH = Path.Combine(labfolder_path, "lab.xml");
-                   // MessageBox.Show(CFGFILE_PATH);
-                    if (File.Exists(CFGFILE_PATH))
-                    {
-                        XDocument labDoc = XDocument.Load(CFGFILE_PATH);
-                        string datetime = (from dev in labDoc.Descendants("Setting")
-                                           where (string)dev.Attribute("Name") == "DateTime"
-                                           select (string)dev.Attribute("Value").Value).FirstOrDefault();
-                        apiPort = (from dev in labDoc.Descendants("Setting")
-                                   where (string)dev.Attribute("Name") == "Api Port"
-                                   select (string)dev.Attribute("Value").Value).FirstOrDefault();
 
-                        hostAddress = (from dev in labDoc.Descendants("Setting")
-                                       where (string)dev.Attribute("Name") == "Lab Url"
+                    if (ExistingLabList.SelectedIndex > -1)
+                    {                       
+                        labzipfile = runlab;
+                        labfolder_path = Path.Combine(CFGFOLDER_PATH, labzipfile);
+                        CFGFILE_PATH = Path.Combine(labfolder_path, "lab.xml");
+                       // ExistingLabList.Enabled = false;                       
+                        if (File.Exists(CFGFILE_PATH))
+                        {
+                            XDocument labDoc = XDocument.Load(CFGFILE_PATH);
+                            datetime = (from dev in labDoc.Descendants("Setting")
+                                               where (string)dev.Attribute("Name") == "DateTime"
+                                               select (string)dev.Attribute("Value").Value).FirstOrDefault();
+                            apiPort = (from dev in labDoc.Descendants("Setting")
+                                       where (string)dev.Attribute("Name") == "Api Port"
                                        select (string)dev.Attribute("Value").Value).FirstOrDefault();
 
-                        string baseAddress = "http://" + hostAddress + ":9000/api/time";
-                        HttpWebRequest request = (HttpWebRequest)WebRequest.Create(baseAddress);
-                        request.Method = "Get";
-                        request.KeepAlive = true;
+                            hostAddress = (from dev in labDoc.Descendants("Setting")
+                                           where (string)dev.Attribute("Name") == "Lab Url"
+                                           select (string)dev.Attribute("Value").Value).FirstOrDefault();
 
-                        HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-                        string myResponse = "";
+                            string baseAddress = "http://" + hostAddress + ":"+apiPort+"/api/time";
 
-                        using (System.IO.StreamReader sr = new System.IO.StreamReader(response.GetResponseStream()))
-                        {
-                            myResponse = sr.ReadToEnd();
-                        }
+                            //var support_Response = Support.GetFromServer(baseAddress);
 
-                        String serverdatetime = myResponse.ToString().Substring(1, myResponse.Length - 2);
-                        DateTime servertime = DateTime.Parse(serverdatetime, new System.Globalization.CultureInfo("pt-BR"));
-                        DateTime scheduletime = DateTime.Parse(datetime);
-                        DateTime duration = scheduletime.AddMinutes(30);
+                            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(baseAddress);
+                            request.Method = "Get";
+                            request.KeepAlive = true;
+
+                            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                            string myResponse = "";
+
+                            using (System.IO.StreamReader sr = new System.IO.StreamReader(response.GetResponseStream()))
+                            {
+                                myResponse = sr.ReadToEnd();
+                            }
+
+                            String serverdatetime = myResponse.ToString().Substring(1, myResponse.Length - 2);
+                            DateTime servertime = DateTime.Parse(serverdatetime);
+                            DateTime scheduletime = DateTime.Parse(datetime);
+                            DateTime duration = scheduletime.AddMinutes(30);
 
                         try
-                        {
-                            //  MessageBox.Show(myResponse);
+                        {                  
                             if (servertime.ToShortDateString().Equals(scheduletime.ToShortDateString()))
-                            {
-                                if (servertime.TimeOfDay >= scheduletime.TimeOfDay && servertime.TimeOfDay <= duration.TimeOfDay)
                                 {
-                                    if (File.Exists(labTimeFile))
+                                    if (servertime.TimeOfDay >= scheduletime.TimeOfDay && servertime.TimeOfDay <= duration.TimeOfDay)
                                     {
-
-                                        string remainingtime = File.ReadLines(labTimeFile).First();
-                                       
-                                       if (int.Parse(remainingtime) != 0)
+                                        if (File.Exists(labTimeFile))
                                         {
-                                            time = int.Parse(remainingtime);
-                                            timer1.Start();
-                                            LoadCurrentFile(CFGFILE_PATH);
+                                            string remainingtime = File.ReadLines(labTimeFile).First();
+
+                                            if (int.Parse(remainingtime) != 0)
+                                            {
+                                                time = int.Parse(remainingtime);
+                                                timer1.Start();
+                                                LoadCurrentFile(CFGFILE_PATH);
+                                            }
+                                            else
+                                            {
+                                                MessageBox.Show("No remaining time");
+                                                DisConnectDataSockets();
+                                            }
+
                                         }
                                         else
                                         {
-                                            MessageBox.Show("No remaining time");
-                                            DisConnectDataSockets();
+                                            MessageBox.Show("No lab was running");
                                         }
+                                        resumeToolStripMenuItem.Enabled = false;
+
+                                    }
+                                    else if (servertime.TimeOfDay >= scheduletime.TimeOfDay && servertime.TimeOfDay > duration.TimeOfDay)
+                                    {
+                                        MessageBox.Show("Please Reschedule for the Lab.");
 
                                     }
                                     else
                                     {
-                                        MessageBox.Show("No lab was running");
+                                        MessageBox.Show("Not yet time.");
                                     }
-                                    resumeToolStripMenuItem.Enabled = false;
-
-                                }
-                                else if (servertime.TimeOfDay >= scheduletime.TimeOfDay && servertime.TimeOfDay > duration.TimeOfDay)
-                                {
-                                    MessageBox.Show("please reschedule");
-
                                 }
                                 else
                                 {
-                                    MessageBox.Show("not yet time");
+                                    MessageBox.Show("Please verify date scheduled.");
                                 }
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                MessageBox.Show("Please varify date scheduled");
+                                MessageBox.Show(ex.Message);
                             }
+
                         }
-                        catch (Exception ex)
+
+                        else
                         {
-                            MessageBox.Show(ex.Message);
+                            MessageBox.Show("Upload lab file.");
                         }
-
                     }
-
                     else
                     {
-                        MessageBox.Show("Upload lab file");
+                        MessageBox.Show("Please select a recent lab.");
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    MessageBox.Show("Please select a lab to do!");
-                }               
+                    MessageBox.Show(ex.Message);
+                }
             }            
             
         }
@@ -838,7 +893,57 @@ namespace projectTest1
             public string DevicePath { get; set; }
 
         }
-                           
-        
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            comboBox1.SelectedItem = 1;
+        }
+
+        private void ExistingLabList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            runlab = ExistingLabList.GetItemText(ExistingLabList.SelectedItem);
+            lab_state = true;
+           if (lab_state ==  true && switch_creation_state == true)
+            {
+                MessageBox.Show("Please close the running lab");
+            }      
+        }
+
+        private void Time_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void Reset_Lab_Interface()
+        {
+            timer1.Stop();
+            DisConnectDataSockets();
+            lab_Circuit.Image = null;
+            deleteXmlFile();
+
+            List<Control> listControls = new List<Control>();
+            List<Control> waveform_controls = new List<Control>();
+            foreach (Control control in flowLayoutPanel1.Controls)
+            {
+                listControls.Add(control);
+            }
+            foreach (Control control in listControls)
+            {
+                flowLayoutPanel1.Controls.Remove(control);
+                control.Dispose();
+                switch_creation_state = false;
+            }
+
+            foreach (WaveformPlot plot in waveformGraph1.Plots)
+            {
+                plot.ClearData();
+            }
+
+            waveformGraph1.Plots.Clear();
+            //foreach (Control wave_control in waveformPl)
+            //{
+
+            //}
+        }
     }
 }

@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28711.60
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "project2", "projectTest1\project2.csproj", "{A7E95234-558D-4E52-9209-09A04888E756}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LabClientInterface", "projectTest1\LabClientInterface.csproj", "{A7E95234-558D-4E52-9209-09A04888E756}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,5 +18,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2474C630-681C-4EA3-A1DF-4101AB13432A}
 	EndGlobalSection
 EndGlobal

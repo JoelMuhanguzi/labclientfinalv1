@@ -40,7 +40,16 @@ namespace projectTest1
             }
             return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
         }
-
+        public static string GetFromServer(string url)
+        {
+            var client = new HttpClient();
+            var response = client.GetAsync(url).GetAwaiter().GetResult();
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {               
+                return "Failed to get data to server";
+            }
+            return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+        }
         //public static string PostToServer(string url, List<KeyValuePair<string, string>> paramters, URL_TYPE type)
         //{
         //    var client = new HttpClient();
