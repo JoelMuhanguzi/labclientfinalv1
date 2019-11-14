@@ -45,6 +45,7 @@ namespace projectTest1
 
                 //CreateChannels(channels, hostAddress);
                 //CreateScopeTask("Dev1", channels);
+//yooo bad man
             }
             catch (Exception ex)
             {
